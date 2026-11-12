@@ -1,0 +1,56 @@
+{% extends "base.html" %}{% block title %}New submission{% endblock %}
+{% block head %}
+<style>
+.sc{display:flex;flex-direction:column;gap:8px;margin:0;padding:16px;border:1px solid var(--line);border-radius:var(--radius);background:#fff;transition:border-color .15s,box-shadow .15s,transform .15s}
+.sc:hover{border-color:var(--brand-100);box-shadow:var(--shadow-lg);transform:translateY(-1px)}
+.sc .top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.sc .num{width:24px;height:24px;border-radius:7px;background:var(--brand-50);color:var(--brand-600);font-weight:700;font-size:12px;display:grid;place-items:center}
+.sc h3{font-size:14.5px}
+.sc p{margin:0;color:var(--mute);font-size:13px;flex:1;min-height:40px}
+.sc button{width:100%}
+.sec{display:flex;align-items:center;gap:10px;margin:22px 0 12px;font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--mute);font-weight:700}
+.sec::after{content:"";flex:1;height:1px;background:var(--line)}
+.sec:first-child{margin-top:0}
+.drop{border:1.5px dashed var(--line);border-radius:var(--radius-sm);padding:14px;background:var(--surface-2)}
+.drop .t{display:flex;gap:8px;align-items:center;font-weight:650;font-size:13px;margin-bottom:8px}.drop .t .i{color:var(--brand)}
+.drop input[type=file]{border:0;background:transparent;padding:0}
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>New submission</h1><p class="sub">Run a prepared scenario to watch all nine pipeline stages decide in real time, or submit your own vendor with documents.</p></div></div>
+
+<div class="card"><div class="card-h"><div><h2>Demo scenarios</h2><div class="hint">One click. Each shows its expected outcome so you can verify the pipeline.</div></div>
+  <form method="post" action="/reset" style="margin:0"><button class="alt sm danger" onclick="return confirm('Clear all submissions and onboarded vendors?')"><svg class="i sm"><use href="#i-refresh"/></svg>Reset demo data</button></form></div>
+  <div class="grid g3">{% for key,title,desc,exp in scenarios %}
+  <form method="post" action="/demo/{{key}}" class="sc"><div class="top"><span class="num">{{loop.index0}}</span><span class="chip dot {{exp}}">Expect {{exp}}</span></div>
+    <h3>{{title}}</h3><p>{{desc}}</p><button class="alt"><svg class="i sm"><use href="#i-play"/></svg>Run scenario</button></form>{% endfor %}</div>
+</div>
+
+<form class="card" method="post" action="/submit" enctype="multipart/form-data">
+  <div class="card-h"><div><h2>Submit your own vendor</h2><div class="hint">Leave fields or files empty to see the Pending path.</div></div></div>
+  <div class="sec">Company</div>
+  <div class="grid g3">
+    <div><label>Legal name *</label><input name="legal_name"></div>
+    <div><label>Country *</label><select name="country">{% for c,n in countries.items() %}<option value="{{c}}">{{n}}</option>{% endfor %}</select></div>
+    <div><label>Registration number *</label><input name="registration_number"></div>
+    <div style="grid-column:1/-1"><label>Registered address *</label><input name="address"></div>
+    <div><label>Tax ID (GSTIN / EIN / VAT / TRN) *</label><input name="tax_id"></div>
+    <div><label>PAN (India only)</label><input name="pan"></div>
+    <div><label>Website *</label><input name="website"></div></div>
+  <div class="sec">Contact</div>
+  <div class="grid g3"><div><label>Contact name *</label><input name="contact_name"></div><div><label>Contact email *</label><input name="contact_email" type="email"></div></div>
+  <div class="sec">Banking</div>
+  <div class="grid g3">
+    <div><label>Bank name *</label><input name="bank_name"></div>
+    <div><label>Bank country *</label><select name="bank_country">{% for c,n in countries.items() %}<option value="{{c}}">{{n}}</option>{% endfor %}</select></div>
+    <div><label>Account holder *</label><input name="account_holder"></div>
+    <div><label>Account number / IBAN *</label><input name="account_number"></div>
+    <div><label>IFSC / SWIFT / routing *</label><input name="bank_code"></div></div>
+  <div class="sec">Documents (PDF)</div>
+  <div class="grid g3">
+    <div class="drop"><div class="t"><svg class="i"><use href="#i-file"/></svg>Certificate of incorporation</div><input type="file" name="incorporation" accept="application/pdf"></div>
+    <div class="drop"><div class="t"><svg class="i"><use href="#i-file"/></svg>Tax registration certificate</div><input type="file" name="tax" accept="application/pdf"></div>
+    <div class="drop"><div class="t"><svg class="i"><use href="#i-file"/></svg>Bank letter / cancelled cheque</div><input type="file" name="bank_letter" accept="application/pdf"></div></div>
+  <div style="margin-top:22px;display:flex;gap:14px;align-items:center;flex-wrap:wrap"><button><svg class="i"><use href="#i-bolt"/></svg>Submit for onboarding</button><span class="note">You will be taken to the live run view.</span></div>
+</form>
+{% endblock %}

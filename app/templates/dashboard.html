@@ -1,0 +1,189 @@
+{% extends "base.html" %}{% block title %}Dashboard{% endblock %}
+{% block head %}
+<style>
+.kpi{display:flex;flex-direction:column;gap:2px;padding:16px 18px;margin:0;position:relative}
+.kpi .l{font-size:12px;color:var(--mute);font-weight:600;display:flex;align-items:center;gap:7px}
+.kpi .l .dotk{width:8px;height:8px;border-radius:50%}
+.kpi .n{font-size:28px;font-weight:750;letter-spacing:-.03em;line-height:1.15;font-variant-numeric:tabular-nums}
+.kpi .s{font-size:12px;color:var(--mute)}
+.mix{display:flex;height:14px;border-radius:99px;overflow:hidden;background:var(--line-2);margin:6px 0 16px}
+.mix i{display:block;height:100%;transition:width .4s}
+.legend{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.lg{border:1px solid var(--line);border-radius:var(--radius-sm);padding:10px 12px}
+.lg .t{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.lg .t i{width:9px;height:9px;border-radius:50%}
+.lg .v{font-size:20px;font-weight:750;letter-spacing:-.02em;margin-top:2px}.lg .v small{font-size:12px;color:var(--mute);font-weight:500;margin-left:4px;letter-spacing:0}
+.reason{display:grid;grid-template-columns:1fr auto;gap:2px 12px;margin-bottom:12px;align-items:center}
+.reason .nm{font-size:13px;color:var(--ink-2);display:flex;gap:8px;align-items:center;min-width:0}.reason .nm b{font-family:var(--mono);font-size:11.5px;color:var(--mute);font-weight:600;flex:none}
+.reason .nm span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.reason .ct{font-weight:700;font-size:13px;font-variant-numeric:tabular-nums}
+.reason .tr{grid-column:1/-1;height:6px;background:var(--line-2);border-radius:6px;overflow:hidden}.reason .tr i{display:block;height:100%;background:linear-gradient(90deg,#6366f1,#818cf8);border-radius:6px}
+.toolbar{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:14px 20px;border-bottom:1px solid var(--line)}
+.search{position:relative;flex:1;min-width:220px;max-width:420px;display:flex;gap:8px}
+.search .i{position:absolute;left:12px;top:11px;color:var(--faint);pointer-events:none}
+.search input{padding-left:36px}
+.tabs{display:inline-flex;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
+.tabs a,.tabs button{padding:5px 12px;border-radius:7px;font-size:13px;font-weight:600;color:var(--mute);background:transparent;border:0;display:inline-flex;gap:7px;align-items:center;text-decoration:none}
+.tabs a:hover,.tabs button:hover{color:var(--ink);background:transparent;text-decoration:none}
+.tabs .on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(15,23,42,.1)}
+.tabs .c{font-size:11.5px;color:var(--faint);font-weight:600}
+.vname{font-weight:650;color:var(--ink)}
+.vsub{font-size:12px;color:var(--mute)}
+.vers{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.vdot{display:inline-flex;align-items:center;gap:5px;padding:2px 9px 2px 7px;border-radius:99px;font-size:12px;font-weight:650;border:1px solid;text-decoration:none!important}
+.vdot::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.vdot:hover{filter:brightness(.96)}
+.arrow{color:var(--faint)}
+.risk{display:flex;align-items:center;gap:8px;font-variant-numeric:tabular-nums;font-weight:600}
+.risk .tr{width:54px;height:6px;border-radius:6px;background:var(--line-2);overflow:hidden}.risk .tr i{display:block;height:100%;border-radius:6px}
+.xbtn{width:28px;height:28px;padding:0;border-radius:8px;background:transparent;color:var(--mute);border:1px solid transparent}
+.xbtn:hover{background:var(--surface-2);border-color:var(--line);color:var(--ink)}
+.xbtn .i{transition:transform .15s}.open .xbtn .i{transform:rotate(90deg)}
+tr.detail td{background:#fafbfe;padding:0;border-bottom:1px solid var(--line)}
+tr.detail .inner{padding:16px 20px 18px 52px}
+.mini{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.mini h3{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);margin-bottom:8px}
+.fr{display:flex;gap:8px;align-items:flex-start;font-size:13px;margin-bottom:7px}
+.fr .chip{flex:none}
+.hist{display:grid;grid-template-columns:auto auto 1fr auto;gap:8px 14px;align-items:center;font-size:13px}
+.hide{display:none!important}
+.spinner{width:14px;height:14px;border-radius:50%;border:2px solid var(--brand-100);border-top-color:var(--brand);animation:spin .8s linear infinite;display:inline-block;vertical-align:-2px}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(max-width:860px){.legend{grid-template-columns:1fr}tr.detail .inner{padding:14px 16px}.toolbar{padding:14px}}
+</style>
+{% endblock %}
+{% block content %}
+{% set appr = counts.get('Approved',0) %}{% set pend = counts.get('Pending',0) %}{% set rej = counts.get('Rejected',0) %}
+<div class="page-head">
+  <div><h1>Dashboard</h1><p class="sub">Every vendor submission, its decision history and the evidence behind each outcome.</p></div>
+  <div style="display:flex;gap:10px"><a class="btn alt" href="/audit/export.csv"><svg class="i"><use href="#i-download"/></svg>Audit CSV</a><a class="btn" href="/"><svg class="i"><use href="#i-plus"/></svg>New submission</a></div>
+</div>
+
+<div class="grid g6" style="margin-bottom:18px">
+  <div class="card kpi"><span class="l"><svg class="i sm"><use href="#i-users"/></svg>Submissions</span><span class="n">{{total}}</span><span class="s">{{ rows|length }} shown below</span></div>
+  <div class="card kpi"><span class="l"><span class="dotk" style="background:var(--ok-solid)"></span>Approved</span><span class="n" style="color:var(--ok)">{{appr}}</span><span class="s">{{ ((appr*100/total)|round|int) if total else 0 }}% of runs</span></div>
+  <div class="card kpi"><span class="l"><span class="dotk" style="background:var(--warn-solid)"></span>Pending</span><span class="n" style="color:var(--warn)">{{pend}}</span><span class="s">{{ ((pend*100/total)|round|int) if total else 0 }}% of runs</span></div>
+  <div class="card kpi"><span class="l"><span class="dotk" style="background:var(--bad-solid)"></span>Rejected</span><span class="n" style="color:var(--bad)">{{rej}}</span><span class="s">{{ ((rej*100/total)|round|int) if total else 0 }}% of runs</span></div>
+  <div class="card kpi"><span class="l"><svg class="i sm"><use href="#i-bolt"/></svg>Avg processing</span><span class="n">{{ '%.1f'|format(avg) if avg else '–' }}{% if avg %}<small style="font-size:15px;color:var(--mute);font-weight:600">s</small>{% endif %}</span><span class="s">per submission</span></div>
+  <div class="card kpi"><span class="l"><svg class="i sm"><use href="#i-clock"/></svg>Time saved</span><span class="n">{{time_saved}}<small style="font-size:15px;color:var(--mute);font-weight:600">m</small></span><span class="s">{{automated}} automated × 12 min</span></div>
+</div>
+
+<div class="grid g2" style="margin-bottom:18px">
+  <div class="card" style="margin:0"><div class="card-h"><h2>Decision mix</h2><span class="hint">{{total}} run{{ '' if total==1 else 's' }}</span></div>
+    <div class="mix" role="img" aria-label="Decision mix">
+      {% if total %}<i style="width:{{appr*100/total}}%;background:var(--ok-solid)"></i><i style="width:{{pend*100/total}}%;background:var(--warn-solid)"></i><i style="width:{{rej*100/total}}%;background:var(--bad-solid)"></i>{% endif %}</div>
+    <div class="legend">
+      {% for lbl,n,col in [('Approved',appr,'var(--ok-solid)'),('Pending',pend,'var(--warn-solid)'),('Rejected',rej,'var(--bad-solid)')] %}
+      <div class="lg"><div class="t"><i style="background:{{col}}"></i>{{lbl}}</div><div class="v">{{n}}<small>{{ ((n*100/total)|round|int) if total else 0 }}%</small></div></div>{% endfor %}
+    </div>
+  </div>
+  <div class="card" style="margin:0"><div class="card-h"><h2>Top failure reasons</h2><span class="hint">Rules that failed most often</span></div>
+    {% set mx = (reasons|map(attribute='n')|max) if reasons else 1 %}
+    {% for r in reasons %}<div class="reason"><div class="nm"><b>{{r.rule_id}}</b><span title="{{r.title}}">{{r.title}}</span></div><div class="ct">{{r.n}}</div><div class="tr"><i style="width:{{ (r.n*100/mx)|int }}%"></i></div></div>
+    {% else %}<div class="empty"><b>No failures yet</b>Run a scenario to see which rules fail most often.</div>{% endfor %}
+  </div>
+</div>
+
+{# ---- group runs by vendor (rows are newest first) ---- #}
+{% set ns = namespace(order=[], by={}) %}
+{% for r in rows %}{% if r.name not in ns.by %}{% set _ = ns.order.append(r.name) %}{% set _ = ns.by.update({r.name: []}) %}{% endif %}{% set _ = ns.by[r.name].append(r) %}{% endfor %}
+
+<div class="card flush">
+  <div class="toolbar">
+    <form method="get" class="search"><svg class="i"><use href="#i-search"/></svg><input name="q" value="{{query}}" placeholder="Search name, country, tax ID, email…" aria-label="Search vendors"><input type="hidden" name="status" value="{{status}}"><button class="sm">Search</button>{% if query %}<a class="btn alt sm" href="/dashboard{{ '?status='~status if status }}">Clear</a>{% endif %}</form>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+      <div class="tabs" role="tablist" aria-label="Filter by status">
+        <a class="{{ 'on' if not status }}" href="/dashboard{{ '?q='~query|urlencode if query }}">All <span class="c">{{total}}</span></a>
+        <a class="{{ 'on' if status=='Approved' }}" href="/dashboard?status=Approved{{ '&q='~query|urlencode if query }}">Approved <span class="c">{{appr}}</span></a>
+        <a class="{{ 'on' if status=='Pending' }}" href="/dashboard?status=Pending{{ '&q='~query|urlencode if query }}">Pending <span class="c">{{pend}}</span></a>
+        <a class="{{ 'on' if status=='Rejected' }}" href="/dashboard?status=Rejected{{ '&q='~query|urlencode if query }}">Rejected <span class="c">{{rej}}</span></a>
+      </div>
+      <div class="tabs" id="viewTabs"><button type="button" data-v="vendors" class="on">Vendors</button><button type="button" data-v="runs">All runs</button></div>
+    </div>
+  </div>
+
+  {# ===== Vendors view ===== #}
+  <div id="v-vendors" class="tbl-wrap">
+  <table><thead><tr><th style="width:44px"></th><th>Vendor</th><th>Decision history</th><th>Latest</th><th>Risk</th><th>Last submitted</th><th></th></tr></thead>
+  <tbody>
+  {% for name in ns.order %}{% set vr = ns.by[name] %}{% set last = vr[0] %}
+  <tr class="hov vrow" data-t="v{{loop.index}}"><td><button class="xbtn" type="button" aria-label="Toggle history for {{name}}" aria-expanded="false"><svg class="i"><use href="#i-chev"/></svg></button></td>
+    <td><div class="vname">{{name}}</div><div class="vsub">{{vr|length}} submission{{ '' if vr|length==1 else 's' }}</div></td>
+    <td><div class="vers">{% for r in vr|reverse %}<a class="vdot {{r.status}}" href="/results/{{r.id}}" title="Run #{{r.id}} · {{r.status}}">v{{r.version}}</a>{% if not loop.last %}<svg class="i sm arrow"><use href="#i-chev"/></svg>{% endif %}{% endfor %}</div></td>
+    <td><span class="chip dot {{last.status}}">{{last.status}}</span>{% if last.review_flag %} <span class="chip neutral" title="Manual review flagged"><svg class="i sm"><use href="#i-flag"/></svg>Review</span>{% endif %}</td>
+    <td><div class="risk">{{last.risk_score}}<span class="tr"><i style="width:{{ [last.risk_score,100]|min }}%;background:{{ 'var(--bad-solid)' if last.risk_score>=30 else ('var(--warn-solid)' if last.risk_score>0 else 'var(--ok-solid)') }}"></i></span></div></td>
+    <td><time data-utc="{{last.created_at}}" class="note">{{last.created_at}}</time></td>
+    <td style="text-align:right"><a class="btn alt sm" href="/results/{{last.id}}">Open</a></td></tr>
+  <tr class="detail hide" data-p="v{{loop.index}}"><td colspan="7"><div class="inner"><h3 style="font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);margin-bottom:10px">Submission history</h3>
+    <div class="hist">{% for r in vr %}<span class="vdot {{r.status}}">v{{r.version}}</span><span class="chip dot {{r.status}}">{{r.status}}</span><span class="note">Run #{{r.id}} · risk {{r.risk_score}}{% if r.review_flag %} · manual review flagged{% endif %} · <time data-utc="{{r.created_at}}">{{r.created_at}}</time></span><span><a href="/results/{{r.id}}">Result</a> · <a href="/runs/{{r.id}}">Replay</a></span>{% endfor %}</div></div></td></tr>
+  {% else %}
+  <tr><td colspan="7"><div class="empty"><b>{{ 'No vendors match your filters' if (query or status) else 'No vendors yet' }}</b>{{ 'Try clearing the search or status filter.' if (query or status) else 'Run a demo scenario or submit a vendor to get started.' }}<br><br><a class="btn sm" href="/">Start a submission</a></div></td></tr>
+  {% endfor %}
+  </tbody></table></div>
+
+  {# ===== Runs view ===== #}
+  <div id="v-runs" class="tbl-wrap hide">
+  <table><thead><tr><th style="width:44px"></th><th>Run</th><th>Vendor</th><th>Version</th><th>Status</th><th>Risk</th><th>Submitted</th><th></th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+  <tr class="hov rrow" data-id="{{r.id}}" data-t="r{{r.id}}"><td><button class="xbtn" type="button" aria-label="Toggle outputs for run {{r.id}}" aria-expanded="false"><svg class="i"><use href="#i-chev"/></svg></button></td>
+    <td><a href="/results/{{r.id}}" style="font-weight:650">#{{r.id}}</a></td><td class="vname">{{r.name}}</td><td>v{{r.version}}</td>
+    <td><span class="chip dot {{r.status}}">{{r.status}}</span>{% if r.review_flag %} <span class="chip neutral"><svg class="i sm"><use href="#i-flag"/></svg>Review</span>{% endif %}</td>
+    <td><div class="risk">{{r.risk_score}}<span class="tr"><i style="width:{{ [r.risk_score,100]|min }}%;background:{{ 'var(--bad-solid)' if r.risk_score>=30 else ('var(--warn-solid)' if r.risk_score>0 else 'var(--ok-solid)') }}"></i></span></div></td>
+    <td><time data-utc="{{r.created_at}}" class="note">{{r.created_at}}</time></td>
+    <td style="text-align:right;white-space:nowrap"><a class="btn alt sm" href="/runs/{{r.id}}">Replay</a> <a class="btn alt sm" href="/results/{{r.id}}">Result</a></td></tr>
+  <tr class="detail hide" data-p="r{{r.id}}"><td colspan="8"><div class="inner" id="out{{r.id}}"><span class="note"><span class="spinner"></span> Loading outputs…</span></div></td></tr>
+  {% else %}
+  <tr><td colspan="8"><div class="empty"><b>No runs yet</b>Run a scenario to see decisions here.</div></td></tr>
+  {% endfor %}
+  </tbody></table></div>
+</div>
+
+<script>
+const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// relative times (sqlite stores UTC)
+function rel(t){const d=new Date(t.replace(' ','T')+'Z');if(isNaN(d))return t;const s=(Date.now()-d)/1000;
+  if(s<45)return 'just now';if(s<3600)return Math.round(s/60)+' min ago';if(s<86400)return Math.round(s/3600)+' h ago';
+  return d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}
+$$('time[data-utc]').forEach(el=>{const raw=el.dataset.utc;el.title=new Date(raw.replace(' ','T')+'Z').toLocaleString();el.textContent=rel(raw)});
+
+// view toggle (remembered per browser)
+function setView(v){
+  document.getElementById('v-vendors').classList.toggle('hide',v!=='vendors');document.getElementById('v-runs').classList.toggle('hide',v!=='runs');
+  $$('#viewTabs button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));try{localStorage.setItem('dashView',v)}catch(e){}}
+$$('#viewTabs button').forEach(b=>b.onclick=()=>setView(b.dataset.v));
+try{const v=localStorage.getItem('dashView');if(v==='runs'||v==='vendors')setView(v)}catch(e){}
+
+// expand rows
+const loaded={};
+$$('tr[data-t]').forEach(tr=>{
+  const toggle=()=>{
+    const det=document.querySelector('tr.detail[data-p="'+tr.dataset.t+'"]'),open=det.classList.toggle('hide')===false;
+    tr.classList.toggle('open',open);tr.querySelector('.xbtn').setAttribute('aria-expanded',open);
+    if(open&&tr.classList.contains('rrow'))loadOut(tr.dataset.id);
+  };
+  tr.querySelector('.xbtn').onclick=e=>{e.stopPropagation();toggle()};
+  tr.onclick=e=>{if(!e.target.closest('a,button,input'))toggle()};
+  tr.style.cursor='pointer';
+});
+
+// Outputs preview: read the stored result page (no extra API needed).
+async function loadOut(id){
+  if(loaded[id])return;loaded[id]=1;const box=document.getElementById('out'+id);
+  try{
+    const html=await (await fetch('/results/'+id)).text(),doc=new DOMParser().parseFromString(html,'text/html');
+    const rules=[...doc.querySelectorAll('tr[data-rule]')].map(tr=>({...tr.dataset}));
+    const bad=rules.filter(r=>r.outcome==='fail'||r.outcome==='grey'),ok=rules.filter(r=>r.outcome==='pass');
+    const subj=(doc.querySelector('input[name="subject"]')||{}).value||'',note=((doc.querySelector('[data-internal-note]')||{}).textContent||'').trim();
+    const reviews=[...doc.querySelectorAll('[data-review]')].map(e=>e.textContent.replace(/\s+/g,' ').trim());
+    box.innerHTML=`<div class="mini">
+      <div><h3>Validation findings</h3>${bad.length?bad.map(r=>`<div class="fr"><span class="chip ${r.outcome==='fail'?'sev-'+esc(r.severity):'grey'}">${esc(r.rule)}</span><span><b style="font-weight:600">${esc(r.title)}</b>${r.message?`<br><span class="note">${esc(r.message)}</span>`:''}</span></div>`).join(''):'<div class="fr"><span class="chip pass">All clear</span><span class="note">No rule failures.</span></div>'}
+        <div class="note" style="margin-top:6px">${ok.length} of ${rules.length} checks passed</div></div>
+      <div><h3>Vendor email draft</h3>${subj?`<div style="font-weight:600;font-size:13px;margin-bottom:4px">${esc(subj)}</div>`:''}<div class="note">${subj?'Open the result to read or edit the full draft.':'No draft available.'}</div>
+        ${reviews.length?`<h3 style="margin-top:14px">Reviewer decision</h3><div class="note">${esc(reviews[0])}</div>`:''}</div>
+      <div><h3>Internal note</h3><div class="note" style="white-space:pre-wrap">${esc(note.split('\n').slice(0,6).join('\n'))||'—'}</div></div></div>`;
+  }catch(e){box.innerHTML='<span class="note">Could not load outputs for this run.</span>'}
+}
+</script>
+{% endblock %}

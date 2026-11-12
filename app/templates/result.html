@@ -1,0 +1,107 @@
+{% extends "base.html" %}{% block title %}Result #{{run.id}}{% endblock %}
+{% block head %}
+<style>
+.banner .risk-pill{display:flex;flex-direction:column;align-items:flex-end;gap:2px;text-align:right}
+.banner .risk-pill b{font-size:26px;letter-spacing:-.03em;line-height:1}
+.banner .risk-pill span{font-size:12px;opacity:.85}
+.meta-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.alert{display:flex;gap:10px;padding:12px 14px;border-radius:var(--radius-sm);border:1px solid;font-size:13.5px;margin-bottom:12px;align-items:flex-start}
+.alert.bad{background:var(--bad-bg);border-color:var(--bad-line);color:var(--bad)}
+.alert.info{background:var(--brand-50);border-color:var(--brand-100);color:var(--brand-600)}
+.rt .sev{margin-left:6px}
+.rowhead{display:flex;gap:8px;align-items:center}
+td.mono{max-width:220px}
+.cmp .ev{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;margin-bottom:3px}
+.cmp .ev .st{display:inline-flex;gap:4px;align-items:center;font-size:11.5px;font-weight:650;border-radius:99px;padding:0 8px}
+.cmp .ev.match .st{background:var(--ok-bg);color:var(--ok)}.cmp .ev.mismatch .st{background:var(--bad-bg);color:var(--bad)}.cmp .ev.low .st{background:var(--warn-bg);color:var(--warn)}
+.cmp .ev .vv{font-family:var(--mono);font-size:12.5px;word-break:break-all}
+.rev{padding:10px 0;border-top:1px solid var(--line-2);font-size:13px}
+.rev:first-child{border-top:0}
+.two{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:18px;align-items:start}
+.two>div>.card:last-child{margin-bottom:0}
+@media(max-width:1000px){.two{grid-template-columns:1fr}}
+.filters{display:inline-flex;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:3px}
+.filters button{background:transparent;border:0;color:var(--mute);padding:4px 11px;border-radius:7px;font-size:12.5px;font-weight:600}
+.filters button:hover{background:transparent;color:var(--ink)}.filters button.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(15,23,42,.1)}
+.hide{display:none!important}
+</style>
+{% endblock %}
+{% block content %}
+{% set icn = {'Approved':'check','Pending':'alert','Rejected':'x'}[run.status] if run.status in ['Approved','Pending','Rejected'] else 'clock' %}
+{% set nfail = rules|selectattr('outcome','equalto','fail')|list|length %}
+<div class="page-head">
+  <div>
+    <div class="crumbs"><a href="/dashboard">Dashboard</a> <svg class="i sm"><use href="#i-chev"/></svg> <span>Run #{{run.id}}</span></div>
+    <h1>{{form.legal_name}}</h1>
+    <div class="meta-row"><span class="chip neutral">Run #{{run.id}}</span><span class="chip neutral">Version {{sub.version}}</span>{% if form.country %}<span class="chip neutral">{{form.country}}</span>{% endif %}{% if form.contact_email %}<span class="chip neutral">{{form.contact_email}}</span>{% endif %}</div>
+  </div>
+  <div style="display:flex;gap:10px"><a class="btn alt" href="/runs/{{run.id}}"><svg class="i"><use href="#i-play"/></svg>Replay live run</a></div>
+</div>
+
+<div class="banner {{run.status}}">
+  <div class="ico"><svg class="i"><use href="#i-{{icn}}"/></svg></div>
+  <div class="grow"><div class="big">{{run.status}}</div>
+    <div class="meta">{% if run.review_flag %}Manual review flagged · {% endif %}{{nfail}} rule{{ '' if nfail==1 else 's' }} failed</div></div>
+  <div class="risk-pill"><b>{{run.risk_score}}</b><span>risk score</span></div>
+</div>
+
+<div class="two">
+<div>
+  <div class="card flush"><div class="card-h"><h2>Rule results</h2>
+    <div class="filters" id="rf"><button type="button" class="on" data-f="all">All {{rules|length}}</button><button type="button" data-f="issues">Issues {{nfail + (rules|selectattr('outcome','equalto','grey')|list|length)}}</button></div></div>
+    <div class="tbl-wrap"><table><thead><tr><th>Rule</th><th>Outcome</th><th>Form value</th><th>Evidence</th><th>Message</th></tr></thead><tbody>
+    {% for r in rules %}<tr class="hov" data-rule="{{r.rule_id}}" data-title="{{r.title}}" data-outcome="{{r.outcome}}" data-severity="{{r.severity}}" data-points="{{r.points}}" data-message="{{r.message}}" data-form-value="{{r.form_value}}" data-evidence-value="{{r.evidence_value}}">
+      <td><b class="mono" style="color:var(--mute)">{{r.rule_id}}</b><div>{{r.title}}</div></td>
+      <td>{% if r.outcome=='fail' %}<span class="chip sev-{{r.severity}}">{{r.severity}}{% if r.points %} · +{{r.points}}{% endif %}</span>{% else %}<span class="chip {{r.outcome}}">{{ 'Pass' if r.outcome=='pass' else r.outcome|title }}</span>{% endif %}</td>
+      <td class="mono">{{r.form_value}}</td><td class="mono">{{r.evidence_value}}</td><td>{{r.message}}</td></tr>
+    {% else %}<tr><td colspan="5"><div class="empty">No rule results recorded for this run.</div></td></tr>{% endfor %}
+    </tbody></table></div></div>
+
+  <div class="card flush"><div class="card-h"><h2>Form vs PDF evidence</h2><span class="note"><span class="match">Match</span> · <span class="mismatch">Mismatch</span> · <span class="low">Low confidence (&lt;70%)</span></span></div>
+    <div class="tbl-wrap"><table class="cmp"><thead><tr><th>Field</th><th>Submitted form</th><th>PDF extraction</th></tr></thead><tbody>
+    {% for row in comparisons %}<tr><td><b>{{row.field}}</b></td><td class="mono">{{row.form_value}}</td><td>{% for e in row.entries %}<div class="ev {{e.state}}"><span class="st">{{ {'match':'Match','mismatch':'Mismatch','low':'Low conf.'}[e.state] }}</span><span class="vv">{{e.value}}</span><span class="note">{{e.doc}} · {{'%.0f'|format(e.confidence*100)}}%</span></div>{% endfor %}</td></tr>
+    {% else %}<tr><td colspan="3"><div class="empty">No extracted values to compare.</div></td></tr>{% endfor %}</tbody></table></div></div>
+
+  {% if prev %}<div class="card flush"><div class="card-h"><h2>Changes since version {{prev.version}}</h2>{% if cleared %}<span>Cleared: {% for c in cleared %}<span class="chip pass">{{c}}</span> {% endfor %}</span>{% endif %}</div>
+    <div class="tbl-wrap"><table><thead><tr><th>Field</th><th>Before</th><th>Now</th></tr></thead><tbody>{% for k,a,b in diff %}<tr><td>{{k}}</td><td class="mono">{{a}}</td><td class="mono">{{b}}</td></tr>{% else %}<tr><td colspan="3" class="note">No field changes.</td></tr>{% endfor %}</tbody></table></div></div>{% endif %}
+
+  <div class="card flush"><div class="card-h"><h2>Documents and AI extraction</h2></div>
+    <div class="tbl-wrap"><table><thead><tr><th>Document</th><th>Source</th><th>Extracted fields</th></tr></thead><tbody>
+    {% for d in docs %}<tr><td><b style="text-transform:capitalize">{{d.doc_type|replace('_',' ')}}</b><div class="note">{{d.filename}} · sha256 {{d.sha256[:10]}}</div></td><td><span class="chip brand">{{d.ext.get('source','')}}</span></td>
+      <td class="mono">{% for k,v in d.ext.get('fields',{}).items() %}<div>{{k}}: {{v}} <span class="note">({{'%.2f'|format(d.ext.confidence.get(k,0))}})</span></div>{% endfor %}</td></tr>
+    {% else %}<tr><td colspan="3"><div class="empty">No documents attached.</div></td></tr>{% endfor %}</tbody></table></div></div>
+</div>
+
+<div>
+  <div class="card"><div class="card-h"><h2>Human review</h2></div>
+    {% if request.query_params.get('review_error') == 'protected' %}<div class="alert bad"><svg class="i"><use href="#i-alert"/></svg><div>Approval blocked: a critical fraud or sanctions rule is present. Record a Pending or Rejected review instead.</div></div>{% elif request.query_params.get('review_error') %}<div class="alert bad"><svg class="i"><use href="#i-alert"/></svg><div>Decision, reviewer name and reason are all required.</div></div>{% endif %}
+    {% if critical %}<div class="alert info"><svg class="i"><use href="#i-shield"/></svg><div>Protected rule{{ '' if critical|length==1 else 's' }}: {% for c in critical %}<span class="chip fail">{{c.rule_id}}</span> {% endfor %}cannot be overridden to Approved.</div></div>{% endif %}
+    <form method="post" action="/runs/{{run.id}}/review" class="field-stack"><div><label>Reviewer name *</label><input required name="reviewer" placeholder="Your name"></div>
+      <div><label>Decision *</label><select name="decision"><option>Approved</option><option selected>Pending</option><option>Rejected</option></select></div>
+      <div><label>Reason *</label><textarea required name="reason" style="min-height:90px" placeholder="Explain the review decision for the audit trail"></textarea></div>
+      <button>Record decision</button></form>
+    <div style="margin-top:14px">{% for r in reviews %}<div class="rev" data-review><span class="chip {{r.decision}}">{{r.decision}}</span> <b>{{r.reviewer}}</b> <span class="note">· {{r.created_at}}</span><div style="margin-top:4px">{{r.reason}}</div></div>{% else %}<p class="note" style="margin:0">No human decision recorded yet.</p>{% endfor %}</div></div>
+
+  <div class="card"><div class="card-h"><h2>Vendor email draft</h2></div><p class="note" style="margin:-6px 0 12px">Editable, previewable and logged. This app drafts but does not send email.</p>
+    {% if request.query_params.get('email_error') %}<div class="alert bad"><svg class="i"><use href="#i-alert"/></svg><div>Reviewer name, subject and message are all required.</div></div>{% endif %}
+    <form method="post" action="/runs/{{run.id}}/email" class="field-stack"><div><label>Reviewer name *</label><input required name="reviewer" placeholder="Your name"></div>
+      <div><label>Subject *</label><input required name="subject" value="{{comms.vendor_email.subject}}"></div>
+      <div><label>Message *</label><textarea required name="body" id="emailBody">{{comms.vendor_email.body}}</textarea></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button>Save draft</button><button class="alt" type="button" id="copyBtn">Copy</button><button class="alt" type="button" onclick="document.getElementById('preview').textContent=document.getElementById('emailBody').value">Preview</button></div></form>
+    <div id="preview" class="pre" style="margin-top:14px">{{comms.vendor_email.body}}</div></div>
+
+  <div class="card"><div class="card-h"><h2>Internal note</h2></div><div class="pre" data-internal-note>{{comms.internal_note.body}}</div></div>
+
+  <div class="card"><div class="card-h"><h2>Vendor history</h2></div>
+    <div class="timeline">{% for h in history %}<div class="ev"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b>v{{h.version}}</b><span class="chip dot {{h.status}}">{{h.status}}</span>{% if h.rid==run.id %}<span class="chip brand">This run</span>{% endif %}</div><div class="note">{{h.created_at}}{% if h.rid %} · <a href="/results/{{h.rid}}">open</a>{% endif %}</div></div>{% endfor %}</div></div>
+
+  <div class="card"><div class="card-h"><h2>Audit trail</h2></div>
+    <div class="timeline">{% for item in audit %}<div class="ev"><b>{{item.action|replace('_',' ')|title}}</b><div class="note">{{item.created_at}} · {{item.actor}}</div>{% if item.detail %}<div class="note mono" style="color:var(--mute)">{{item.detail}}</div>{% endif %}</div>{% else %}<p class="note" style="margin:0">Audit entries will appear as the run is processed.</p>{% endfor %}</div></div>
+</div>
+</div>
+<script>
+document.getElementById('copyBtn').onclick=e=>{const b=e.currentTarget;navigator.clipboard.writeText(document.getElementById('emailBody').value).then(()=>{b.textContent='Copied';setTimeout(()=>b.textContent='Copy',1400)}).catch(()=>{})};
+document.querySelectorAll('#rf button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#rf button').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('tr[data-rule]').forEach(tr=>tr.classList.toggle('hide',b.dataset.f==='issues'&&tr.dataset.outcome==='pass'))});
+</script>
+{% endblock %}

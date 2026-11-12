@@ -1,0 +1,21 @@
+{% extends "base.html" %}{% block title %}Rule settings{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Validation rules</h1><p class="sub">Tune thresholds for future runs. Fraud hard-stops R13, R14 and R15 are protected and cannot be disabled here.</p></div></div>
+{% if request.query_params.get('saved') %}<div class="card" style="border-color:var(--ok-line);background:var(--ok-bg);color:var(--ok);padding:14px 18px;font-weight:600"><svg class="i"><use href="#i-check"/></svg> Rule settings saved. They apply to future runs.</div>
+{% elif request.query_params.get('error') %}<div class="card" style="border-color:var(--bad-line);background:var(--bad-bg);color:var(--bad);padding:14px 18px;font-weight:600"><svg class="i"><use href="#i-alert"/></svg> Enter valid ranges: thresholds 0–100, and grey/warning must stay below pass/block.</div>{% endif %}
+<form method="post" style="max-width:920px">
+  <div class="card"><div class="card-h"><h2>Name matching</h2></div><div class="grid g3">
+    <div><label>Pass threshold</label><input type="number" name="name_pass_threshold" min="1" max="100" value="{{config.name_pass_threshold}}"><div class="note" style="margin-top:4px">At or above: automatic match.</div></div>
+    <div><label>Grey-zone threshold</label><input type="number" name="name_grey_threshold" min="0" max="99" value="{{config.name_grey_threshold}}"><div class="note" style="margin-top:4px">Between grey and pass: AI review.</div></div>
+    <div><label>Fuzzy duplicate threshold</label><input type="number" name="fuzzy_duplicate_threshold" min="0" max="100" value="{{config.fuzzy_duplicate_threshold}}"><div class="note" style="margin-top:4px">Similarity that flags a possible duplicate.</div></div></div></div>
+  <div class="card"><div class="card-h"><h2>Sanctions &amp; risk</h2></div><div class="grid g3">
+    <div><label>Sanctions hard-block threshold</label><input type="number" name="sanctions_block_threshold" min="1" max="100" value="{{config.sanctions_block_threshold}}"></div>
+    <div><label>Sanctions warning threshold</label><input type="number" name="sanctions_warn_threshold" min="0" max="99" value="{{config.sanctions_warn_threshold}}"></div>
+    <div><label>Manual-review risk score</label><input type="number" name="review_risk_threshold" min="0" value="{{config.review_risk_threshold}}"></div>
+    <div><label>Bank-letter freshness (days)</label><input type="number" name="stale_bank_letter_days" min="1" max="3650" value="{{config.stale_bank_letter_days}}"></div></div></div>
+  <div class="card"><div class="card-h"><h2>Optional checks</h2><span class="hint">Switch off checks that are too noisy for your data.</span></div>
+    <div class="grid g2">{% for rule,label in [('R12','Document freshness'),('R13b','Fuzzy duplicate screening'),('R17','Email-domain heuristic'),('R18','Address plausibility')] %}
+    <label style="display:flex;align-items:center;gap:10px;margin:0;padding:12px 14px;border:1px solid var(--line);border-radius:var(--radius-sm);cursor:pointer;font-weight:600"><input type="checkbox" name="{{rule}}" {% if config.enabled_rules[rule] %}checked{% endif %}> <span><span class="mono" style="color:var(--mute)">{{rule}}</span> &nbsp;{{label}}</span></label>{% endfor %}</div></div>
+  <div class="card" style="display:flex;gap:12px;align-items:center;background:var(--brand-50);border-color:var(--brand-100)"><svg class="i lg" style="color:var(--brand)"><use href="#i-shield"/></svg><span class="note" style="flex:1;color:var(--ink-2)">Protected: R13 duplicate tax ID, R14 duplicate bank account, R15 sanctions match.</span><button>Save rule settings</button></div>
+</form>
+{% endblock %}

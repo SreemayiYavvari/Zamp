@@ -1,0 +1,346 @@
+{% extends "base.html" %}{% block title %}Run #{{run.id}}{% endblock %}
+{% block head %}
+<style>
+.meta-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}
+.progress{height:8px;background:rgba(255,255,255,.65);border-radius:99px;overflow:hidden;margin-top:12px}
+.progress>i{display:block;height:100%;width:0;background:currentColor;border-radius:99px;transition:width .5s cubic-bezier(.2,.8,.2,1)}
+.banner .btn{background:#fff;color:var(--ink);border-color:rgba(15,23,42,.12)}
+.banner .btn:hover{background:#f8fafc}
+.timer{font-variant-numeric:tabular-nums;font-weight:650;font-size:13px;color:var(--ink-2);display:inline-flex;gap:6px;align-items:center}
+.switch{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:550;color:var(--mute);margin:0;cursor:pointer}
+
+/* stepper */
+.stepper{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px 12px 12px;margin-bottom:18px;overflow-x:auto;box-shadow:var(--shadow);gap:0}
+.sp{flex:1 0 92px;display:flex;flex-direction:column;align-items:center;gap:7px;position:relative;cursor:pointer;color:var(--mute);font-size:11.5px;font-weight:600;text-align:center;min-width:84px}
+.sp::before{content:"";position:absolute;top:15px;left:-50%;width:100%;height:3px;background:var(--line);z-index:0;border-radius:3px}
+.sp:first-child::before{display:none}
+.sp.s-done::before,.sp.s-warn::before,.sp.s-failed::before,.sp.s-running::before{background:var(--ok-solid)}
+.sp.s-warn::before{background:var(--warn-solid)}.sp.s-failed::before{background:var(--bad-solid)}.sp.s-running::before{background:linear-gradient(90deg,var(--ok-solid),var(--info-line))}
+.node{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:13px;background:#fff;border:2px solid var(--line);color:var(--faint);position:relative;z-index:1;transition:all .25s}
+.sp.s-done .node{background:var(--ok-solid);border-color:var(--ok-solid);color:#fff}
+.sp.s-warn .node{background:var(--warn-solid);border-color:var(--warn-solid);color:#fff}
+.sp.s-failed .node{background:var(--bad-solid);border-color:var(--bad-solid);color:#fff}
+.sp.s-running .node{border-color:var(--brand);color:var(--brand);box-shadow:0 0 0 5px var(--brand-100)}
+.sp.s-done,.sp.s-warn,.sp.s-failed,.sp.s-running{color:var(--ink)}
+.node .i{width:16px;height:16px;stroke-width:2.6}
+.spin{width:16px;height:16px;border-radius:50%;border:2.5px solid var(--brand-100);border-top-color:var(--brand);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* stage cards */
+.stage{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:12px;box-shadow:var(--shadow);overflow:hidden;position:relative;scroll-margin-top:16px;transition:border-color .25s,box-shadow .25s}
+.stage::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--line);transition:background .25s}
+.stage.s-done::before{background:var(--ok-solid)}.stage.s-warn::before{background:var(--warn-solid)}.stage.s-failed::before{background:var(--bad-solid)}.stage.s-running::before{background:var(--brand)}
+.stage.s-running{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-100),var(--shadow-lg)}
+.stage.s-waiting{opacity:.62}
+.st-h{display:flex;gap:14px;align-items:center;padding:15px 18px 15px 22px}
+.st-h .node{flex:none;width:34px;height:34px}
+.stage.s-done .node{background:var(--ok-solid);border-color:var(--ok-solid);color:#fff}
+.stage.s-warn .node{background:var(--warn-solid);border-color:var(--warn-solid);color:#fff}
+.stage.s-failed .node{background:var(--bad-solid);border-color:var(--bad-solid);color:#fff}
+.stage.s-running .node{border-color:var(--brand);color:var(--brand)}
+.st-t{flex:1;min-width:0}.st-t h3{font-size:14.5px}.st-t p{margin:1px 0 0;font-size:12.5px;color:var(--mute)}
+.st-r{display:flex;align-items:center;gap:10px;flex:none}
+.dur{font-size:12px;color:var(--mute);font-variant-numeric:tabular-nums;min-width:34px;text-align:right}
+.st-m{padding:0 18px 14px 22px;margin-top:-4px;font-size:13.5px;color:var(--ink-2);display:none}
+.st-b{padding:0 18px 18px 22px;display:none}
+.stage.has-m .st-m{display:block}.stage.has-b .st-b{display:block}
+.shimmer{height:6px;margin:0 18px 16px 22px;border-radius:6px;background:linear-gradient(90deg,var(--line-2) 0,var(--brand-100) 50%,var(--line-2) 100%);background-size:200% 100%;animation:sh 1.2s linear infinite;display:none}
+.stage.s-running .shimmer{display:block}
+@keyframes sh{to{background-position:-200% 0}}
+.stage.enter{animation:pop .35s ease}
+@keyframes pop{from{transform:translateY(4px);opacity:.5}to{transform:none;opacity:1}}
+
+/* inner blocks */
+.sumbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.rule{display:flex;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);margin-bottom:8px;background:#fff}
+.rule .ri{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;flex:none;background:var(--ok-bg);color:var(--ok)}
+.rule .ri .i{width:14px;height:14px;stroke-width:2.6}
+.rule.fail.v-BLOCK{background:#fffafa;border-color:var(--bad-line)}.rule.fail.v-BLOCK .ri{background:var(--bad-bg);color:var(--bad)}
+.rule.fail.v-FIX{background:#fffdf7;border-color:var(--warn-line)}.rule.fail.v-FIX .ri{background:var(--warn-bg);color:var(--warn)}
+.rule.fail.v-WARN{background:#fafcff;border-color:var(--info-line)}.rule.fail.v-WARN .ri{background:var(--info-bg);color:var(--info)}
+.rule.grey{background:#fffdf7;border-color:var(--warn-line)}.rule.grey .ri{background:var(--warn-bg);color:var(--warn)}
+.rule .rb{flex:1;min-width:0}
+.rule .rt{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13.5px}
+.rule .rt b{font-family:var(--mono);font-size:12px;color:var(--mute);font-weight:600}
+.rule .rm{font-size:13px;color:var(--ink-2);margin-top:3px}
+.rule .rv{font-size:12px;color:var(--mute);margin-top:4px;display:flex;gap:14px;flex-wrap:wrap}
+.rule .rv span span{font-family:var(--mono);color:var(--ink-2)}
+.passlist{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.passlist .chip{font-weight:550}
+.doc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px;margin-bottom:10px}
+.doc{border:1px solid var(--line);border-radius:var(--radius-sm);padding:12px;background:var(--surface-2)}
+.doc-h{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-weight:650;font-size:13px;text-transform:capitalize;flex-wrap:wrap}
+.doc-h .i{color:var(--brand)}
+.fld{display:grid;grid-template-columns:104px 1fr;gap:2px 10px;padding:6px 0;border-top:1px dashed var(--line);font-size:12.5px;align-items:center}
+.fld .k{color:var(--mute);text-transform:capitalize}
+.fld .v{font-family:var(--mono);font-size:12px;color:var(--ink);word-break:break-word}
+.conf{grid-column:2;display:flex;align-items:center;gap:8px;font-size:11px;color:var(--mute)}
+.conf i{display:block;height:4px;border-radius:4px;background:var(--ok-solid);flex:0 0 auto}
+.conf.low i{background:var(--warn-solid)}.conf.low{color:var(--warn);font-weight:600}
+.conf .tr{flex:1;max-width:120px;height:4px;background:var(--line);border-radius:4px;overflow:hidden}.conf .tr i{height:100%}
+.norm{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:8px 12px;align-items:center;font-size:13px}
+.norm .k{color:var(--mute);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+.norm .v{font-family:var(--mono);font-size:12.5px;background:var(--surface-2);border:1px solid var(--line);padding:5px 9px;border-radius:7px;word-break:break-all}
+.norm .ar{color:var(--faint)}
+.decide{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.tile{border:1px solid var(--line);border-radius:var(--radius-sm);padding:12px 14px;background:var(--surface-2)}
+.tile .l{font-size:11.5px;color:var(--mute);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.tile .n{font-size:22px;font-weight:750;letter-spacing:-.02em;margin-top:2px}
+.meter{height:6px;border-radius:6px;background:var(--line);margin-top:8px;overflow:hidden}.meter i{display:block;height:100%;background:var(--warn-solid);border-radius:6px}
+.ai-item{display:flex;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);margin-bottom:8px;font-size:13px;background:#fff}
+.ai-item .i{color:var(--brand);margin-top:2px}
+
+/* side panel */
+.panel{position:sticky;top:16px;display:flex;flex-direction:column;gap:14px;align-self:start}
+.panel .card{margin:0}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.kp{border:1px solid var(--line);border-radius:var(--radius-sm);padding:10px 12px;background:var(--surface-2)}
+.kp .n{font-size:22px;font-weight:750;letter-spacing:-.02em;line-height:1.15;font-variant-numeric:tabular-nums}
+.kp .l{font-size:11.5px;color:var(--mute);font-weight:600}
+.kp.ok .n{color:var(--ok)}.kp.bad .n{color:var(--bad)}.kp.warn .n{color:var(--warn)}
+.f-empty{padding:18px 6px;text-align:center;color:var(--mute);font-size:13px}
+.f-item{margin-top:8px}
+.f-item .from{font-size:11px;color:var(--faint);margin-top:4px}
+.final-tag{display:none}.final .final-tag{display:inline-flex}
+.skip-btn{display:none}
+.replaying .skip-btn{display:inline-flex}
+@media(max-width:860px){.panel{position:static}.norm{grid-template-columns:1fr}.norm .ar{display:none}.decide{grid-template-columns:1fr}}
+</style>
+{% endblock %}
+{% block content %}
+{% set replay = run.status != 'Running' %}
+<div class="page-head">
+  <div>
+    <div class="crumbs"><a href="/dashboard">Dashboard</a> <svg class="i sm"><use href="#i-chev"/></svg> <span>Run #{{run.id}}</span></div>
+    <h1>{{form.legal_name or 'Vendor'}}</h1>
+    <div class="meta-row">
+      <span class="chip neutral">Run #{{run.id}}</span><span class="chip neutral">Version {{run.version}}</span>
+      {% if form.country %}<span class="chip neutral">{{form.country}}</span>{% endif %}
+      <span class="chip {{ 'brand' if replay else 'running' }}" id="modeChip">{{ 'Replay' if replay else 'Live' }}</span>
+      <span class="timer" id="timer" {% if replay %}style="display:none"{% endif %}><svg class="i sm"><use href="#i-clock"/></svg><span id="tv">0.0s</span></span>
+    </div>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <label class="switch"><input type="checkbox" id="follow" {% if not replay %}checked{% endif %}> Follow active stage</label>
+    <button class="alt sm skip-btn" id="skip" type="button"><svg class="i sm"><use href="#i-bolt"/></svg>Skip animation</button>
+    <a class="btn alt" href="/">New submission</a>
+  </div>
+</div>
+
+<div id="banner" class="banner Running">
+  <div class="ico"><div class="spin"></div></div>
+  <div class="grow"><div class="big" id="bt">Starting pipeline…</div><div class="meta" id="bm">Waiting for the first stage.</div>
+    <div class="progress"><i id="pbar"></i></div></div>
+  <a id="rl" class="btn" style="display:none" href="/results/{{run.id}}">Open full result <svg class="i sm"><use href="#i-chev"/></svg></a>
+</div>
+
+<nav class="stepper" id="stepper" aria-label="Pipeline progress">
+{% for s in stages %}<div class="sp s-waiting" data-i="{{loop.index0}}" title="{{s}}"><div class="node">{{loop.index}}</div><span class="lb"></span></div>{% endfor %}
+</nav>
+
+<div class="grid g-main">
+  <div id="steps">
+  {% for s in stages %}
+  <section class="stage s-waiting" id="st{{loop.index0}}" data-i="{{loop.index0}}">
+    <div class="st-h"><div class="node">{{loop.index}}</div>
+      <div class="st-t"><h3>{{s}}</h3><p class="desc"></p></div>
+      <div class="st-r"><span class="dur"></span><span class="chip waiting">Waiting</span></div></div>
+    <div class="shimmer"></div>
+    <div class="st-m"></div><div class="st-b"></div>
+  </section>{% endfor %}
+  </div>
+
+  <aside class="panel" id="panel">
+    <div class="card"><div class="card-h"><h2>Validation findings</h2><span class="chip neutral" id="ftag">Live</span></div>
+      <div class="kpis">
+        <div class="kp"><div class="n" id="k-total">0</div><div class="l">Checks run</div></div>
+        <div class="kp ok"><div class="n" id="k-pass">0</div><div class="l">Passed</div></div>
+        <div class="kp bad"><div class="n" id="k-fail">0</div><div class="l">Issues</div></div>
+        <div class="kp warn"><div class="n" id="k-grey">0</div><div class="l">AI review</div></div>
+      </div>
+      <div id="findings" style="margin-top:14px"><div class="f-empty">No issues found yet. Findings appear here as each stage completes.</div></div>
+    </div>
+    <div class="card"><div class="card-h"><h2>Submission</h2></div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13px">
+        <span class="note">Country</span><span>{{form.country or '—'}}</span>
+        <span class="note">Tax ID</span><span class="mono">{{form.tax_id or '—'}}</span>
+        <span class="note">Registration</span><span class="mono">{{form.registration_number or '—'}}</span>
+        <span class="note">Bank</span><span>{{form.bank_name or '—'}}</span>
+        <span class="note">Contact</span><span style="word-break:break-all">{{form.contact_email or '—'}}</span>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<script>
+const rid={{run.id}}, REPLAY={{ 'true' if replay else 'false' }}, FORM={{ form|tojson }};
+const TITLES={{ stages|tojson }};
+const SHORT=['Intake','Completeness','Extraction','Normalise','Rules','Risk','AI review','Decision','Comms'];
+const DESC=[
+ 'Receives the submission, stores documents and fingerprints each file (SHA-256).',
+ 'Checks that every required field and document is present.',
+ 'Reads each PDF and extracts fields with a confidence score. Document text is treated as untrusted data.',
+ 'Standardises names and identifiers so “PVT LTD” and “Private Limited” compare equal.',
+ 'Validates tax ID format and checksum, and compares the form against document evidence.',
+ 'Screens for duplicate vendors, shared bank accounts and sanctions matches.',
+ 'Only ambiguous name matches are sent for an AI second opinion. Rules make the call.',
+ 'Combines every finding into a risk score and an Approved, Pending or Rejected decision.',
+ 'Drafts the vendor email and internal note, and writes the audit trail.'];
+const LABEL={done:'Complete',warn:'Needs attention',failed:'Blocked',running:'Running',waiting:'Waiting'};
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ic=(n,c='')=>`<svg class="i ${c}"><use href="#i-${n}"/></svg>`;
+const pretty=k=>String(k).replace(/_/g,' ');
+
+// ---- state ----
+const state=Array(9).fill('waiting'), starts={}, ruleMap=new Map(), origin={};
+let t0=null, timerH=null, finished=false, done=0, follow=$('follow').checked;
+$('follow').onchange=e=>follow=e.target.checked;
+document.querySelectorAll('.desc').forEach((el,i)=>el.textContent=DESC[i]);
+document.querySelectorAll('.sp').forEach(el=>{el.querySelector('.lb').textContent=SHORT[el.dataset.i];el.onclick=()=>$('st'+el.dataset.i).scrollIntoView({behavior:'smooth',block:'center'})});
+
+function nodeHtml(st,i){return st==='done'?ic('check'):st==='warn'?ic('alert'):st==='failed'?ic('x'):st==='running'?'<div class="spin"></div>':String(i+1)}
+function setState(i,st){
+  state[i]=st;
+  for(const el of [$('st'+i),document.querySelector('.sp[data-i="'+i+'"]')]){
+    el.className=el.className.replace(/\bs-\w+/g,'').trim()+' s-'+st;
+    el.querySelector('.node').innerHTML=nodeHtml(st,i);
+  }
+  const chip=$('st'+i).querySelector('.chip');chip.className='chip '+st;chip.textContent=LABEL[st];
+  done=state.filter(s=>s==='done'||s==='warn'||s==='failed').length;
+  $('pbar').style.width=(done/9*100)+'%';
+}
+
+// ---- renderers ----
+function ruleRow(r,from){
+  const sev=r.outcome==='fail'?r.severity:'';
+  const icon=r.outcome==='pass'?'check':r.outcome==='grey'?'eye':(r.severity==='BLOCK'?'x':'alert');
+  const chip=r.outcome==='fail'?`<span class="chip sev-${esc(r.severity)}">${esc(r.severity)}${r.points?' · +'+r.points+' risk':''}</span>`
+    :r.outcome==='grey'?'<span class="chip grey">Sent to AI review</span>':'<span class="chip pass">Pass</span>';
+  const vals=(r.form_value||r.evidence_value)?`<div class="rv">${r.form_value?`<span>Form: <span>${esc(r.form_value)}</span></span>`:''}${r.evidence_value?`<span>Evidence: <span>${esc(r.evidence_value)}</span></span>`:''}</div>`:'';
+  return `<div class="rule ${r.outcome} v-${esc(sev)}"><div class="ri">${ic(icon)}</div><div class="rb"><div class="rt"><b>${esc(r.rule)}</b> ${esc(r.title)} ${chip}</div>${r.message?`<div class="rm">${esc(r.message)}</div>`:''}${vals}${from?`<div class="from">${esc(from)}</div>`:''}</div></div>`;
+}
+function rulesBlock(rs){
+  rs=(rs||[]).filter(r=>r.outcome!=='skip'); if(!rs.length)return '';
+  const bad=rs.filter(r=>r.outcome==='fail'||r.outcome==='grey'), ok=rs.filter(r=>r.outcome==='pass');
+  let h=`<div class="sumbar"><span class="chip pass">${ic('check')}${ok.length} passed</span>${bad.length?`<span class="chip fail">${ic('alert')}${bad.length} need attention</span>`:''}</div>`;
+  h+=bad.map(r=>ruleRow(r)).join('');
+  if(ok.length)h+=bad.length?`<details><summary>${ok.length} passed check${ok.length>1?'s':''}</summary><div class="passlist">${ok.map(r=>`<span class="chip pass" title="${esc(r.title)}">${esc(r.rule)} ${esc(r.title)}</span>`).join('')}</div></details>`
+    :`<div class="passlist">${ok.map(r=>`<span class="chip pass" title="${esc(r.title)}">${ic('check')}${esc(r.rule)} ${esc(r.title)}</span>`).join('')}</div>`;
+  return h;
+}
+function docsBlock(list){
+  return `<div class="doc-grid">${list.map(d=>`<div class="doc"><div class="doc-h">${ic('file')}${esc(pretty(d.type))}</div><div class="mono" style="color:var(--ink-2)">${esc(d.file)}</div><div class="note" style="margin-top:4px">sha256 ${esc(d.sha256)}…</div></div>`).join('')||'<div class="note">No documents were attached.</div>'}</div>`;
+}
+function extractBlock(ex){
+  const docs=Object.entries(ex||{}); if(!docs.length)return '<div class="note">No documents to read.</div>';
+  return `<div class="doc-grid">${docs.map(([t,r])=>{
+    const f=Object.entries(r.fields||{});
+    return `<div class="doc"><div class="doc-h">${ic('file')}${esc(pretty(t))}<span class="chip ${r.source==='failed'?'fail':'brand'}" style="margin-left:auto;text-transform:none">${esc(r.source||'unknown')}</span></div>`
+     +(r.security_note?`<div class="chip warn" style="margin:2px 0 6px">${ic('shield')}Embedded instructions ignored</div>`:'')
+     +(r.error?`<div class="note" style="color:var(--bad)">${esc(r.error)}</div>`:'')
+     +(f.length?f.map(([k,v])=>{const c=(r.confidence||{})[k]??0,p=Math.round(c*100),low=c<.7;
+        return `<div class="fld"><span class="k">${esc(pretty(k))}</span><span class="v">${esc(v)}</span><div class="conf ${low?'low':''}"><span class="tr"><i style="width:${p}%"></i></span>${p}%${low?' · low':''}</div></div>`}).join(''):'<div class="note">No fields extracted.</div>')
+     +'</div>'}).join('')}</div>`;
+}
+function normBlock(n){
+  const rows=[['legal_name','Legal name'],['tax_id','Tax ID'],['account_number','Account no.']];
+  return `<div class="norm">${rows.map(([k,l])=>`<span class="k">${l}</span><span class="v">${esc(FORM[k]||'—')}</span><span class="ar">${ic('chev')}</span><span class="v">${esc(n[k]||'—')}</span>`).join('')}</div>`;
+}
+function aiBlock(d,msg){
+  if(d&&d.reviewed){return (msg||'').split('; ').filter(Boolean).map(m=>`<div class="ai-item">${ic('cpu')}<div>${esc(m)}</div></div>`).join('')}
+  return '<div class="note">Every comparison was decided by rules, so no AI review was needed.</div>';
+}
+function decisionBlock(d){
+  if(!d||!d.status)return '';
+  const cls={Approved:'Approved',Pending:'Pending',Rejected:'Rejected'}[d.status];
+  return `<div class="decide"><div class="tile"><div class="l">Decision</div><div class="n"><span class="chip ${cls}" style="font-size:15px;padding:3px 14px">${esc(d.status)}</span></div></div>
+   <div class="tile"><div class="l">Risk score</div><div class="n">${esc(d.risk_score)}</div><div class="meter"><i style="width:${Math.min(100,d.risk_score)}%"></i></div></div>
+   <div class="tile"><div class="l">Manual review</div><div class="n">${d.review_flag?'Flagged':'Not needed'}</div></div></div>`;
+}
+function bodyFor(i,d){
+  const det=d.detail||{};
+  if(i===0)return docsBlock(det.documents||[]);
+  if(i===2)return extractBlock(det.extractions)+rulesBlock(det.rules);
+  if(i===3)return normBlock(det);
+  if(i===6)return aiBlock(det,d.message);
+  if(i===7)return decisionBlock(det);
+  if(i===8)return `<div style="display:flex;gap:8px;flex-wrap:wrap"><span class="chip pass">${ic('mail')}Vendor email drafted</span><span class="chip pass">${ic('file')}Internal note saved</span><span class="chip pass">${ic('shield')}Audit trail written</span></div>`;
+  return rulesBlock(det.rules);
+}
+
+// ---- findings ----
+function recordRules(i,rs){(rs||[]).forEach(r=>{if(r.outcome==='skip')return;ruleMap.set(r.rule,r);origin[r.rule]=TITLES[i]})}
+function renderFindings(final){
+  const all=[...ruleMap.values()], bad=all.filter(r=>r.outcome==='fail'), grey=all.filter(r=>r.outcome==='grey');
+  $('k-total').textContent=all.length;$('k-pass').textContent=all.filter(r=>r.outcome==='pass').length;
+  $('k-fail').textContent=bad.length;$('k-grey').textContent=grey.length;
+  const order={BLOCK:0,FIX:1,WARN:2}, list=[...bad].sort((a,b)=>(order[a.severity]??3)-(order[b.severity]??3)).concat(grey);
+  $('findings').innerHTML=list.length?list.map(r=>`<div class="f-item">${ruleRow(r,'Found in '+(origin[r.rule]||'pipeline'))}</div>`).join('')
+    :`<div class="f-empty">${finished||final?ic('check','lg')+'<br>No validation issues. All checks passed.':'No issues found yet. Findings appear here as each stage completes.'}</div>`;
+}
+// After the run ends, reconcile with the stored results (AI grey-zone review can change outcomes).
+async function reconcile(){
+  try{
+    const html=await (await fetch('/results/'+rid)).text();
+    const doc=new DOMParser().parseFromString(html,'text/html'), rows=doc.querySelectorAll('tr[data-rule]');
+    if(!rows.length)return;
+    ruleMap.clear();
+    rows.forEach(tr=>{const g=k=>tr.dataset[k]||'';ruleMap.set(g('rule'),{rule:g('rule'),title:g('title'),outcome:g('outcome'),severity:g('severity'),points:+g('points')||0,message:g('message'),form_value:g('formValue'),evidence_value:g('evidenceValue')})});
+    const t=$('ftag');t.textContent='Final';t.className='chip pass';renderFindings(true);
+  }catch(e){}
+}
+
+// ---- event handling ----
+function startTimer(){if(t0||REPLAY)return;t0=performance.now();timerH=setInterval(()=>{$('tv').textContent=((performance.now()-t0)/1000).toFixed(1)+'s'},100)}
+function apply(d){
+  const i=d.idx, card=$('st'+i); if(!card)return;
+  startTimer();
+  if(d.state==='running'){
+    starts[i]=performance.now();setState(i,'running');
+    $('bt').textContent='Stage '+(i+1)+' of 9 · '+TITLES[i];$('bm').textContent=DESC[i];
+    if(follow)card.scrollIntoView({behavior:'smooth',block:'center'});
+    return;
+  }
+  setState(i,d.state);card.classList.add('enter');
+  const dur=starts[i]?(performance.now()-starts[i])/1000:0;
+  card.querySelector('.dur').textContent=(!REPLAY&&dur>=.05)?dur.toFixed(1)+'s':'';
+  const msg=(i===6&&!(d.detail&&d.detail.reviewed))?'':d.message;const m=card.querySelector('.st-m');m.textContent=msg||'';card.classList.toggle('has-m',!!msg);
+  const b=card.querySelector('.st-b'), html=bodyFor(i,d);b.innerHTML=html;card.classList.toggle('has-b',!!html);
+  if(d.detail&&d.detail.rules)recordRules(i,d.detail.rules);
+  renderFindings(false);
+  $('bt').textContent=done+' of 9 stages complete';$('bm').textContent=d.message||'';
+}
+function finish(status){
+  finished=true;clearInterval(timerH);
+  const b=$('banner'),meta={Approved:'All checks cleared. Vendor can be onboarded.',Pending:'Action needed before this vendor can be approved.',Rejected:'A blocking issue was found. Do not onboard without review.'}[status]||'';
+  b.className='banner '+status;
+  const icn={Approved:'check',Pending:'alert',Rejected:'x'}[status]||'check';
+  b.querySelector('.ico').innerHTML=ic(icn);
+  $('bt').textContent='Decision: '+status;$('bm').textContent=meta;
+  $('pbar').style.width='100%';$('rl').style.display='inline-flex';
+  $('modeChip').textContent='Complete';$('modeChip').className='chip '+status;
+  document.title=status+' · Run #'+rid;
+  if(!REPLAY&&t0)$('tv').textContent=((performance.now()-t0)/1000).toFixed(1)+'s';
+  document.body.classList.remove('replaying');
+  renderFindings(false);reconcile();
+  if(follow)$('banner').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// Queue so a finished run can be replayed at a readable pace; live runs apply instantly.
+const queue=[];let pace=REPLAY?320:0,busy=false;
+if(REPLAY)document.body.classList.add('replaying');
+$('skip').onclick=()=>{pace=0;pump()};
+function pump(){
+  if(busy&&pace)return;
+  while(queue.length){
+    const it=queue.shift();it.t==='end'?finish(it.d.status):apply(it.d);
+    if(pace){busy=true;setTimeout(()=>{busy=false;pump()},pace);return}
+  }
+}
+const es=new EventSource('/runs/'+rid+'/events');
+es.onmessage=e=>{queue.push({t:'ev',d:JSON.parse(e.data)});pump()};
+es.addEventListener('end',e=>{es.close();queue.push({t:'end',d:JSON.parse(e.data)});pump()});
+es.onerror=()=>{if(!finished&&es.readyState===2){$('bm').textContent='Connection lost. Reload the page to resume.'}};
+</script>
+{% endblock %}
