@@ -1,0 +1,15 @@
+{
+  "name_pass_threshold": 92,
+  "name_grey_threshold": 80,
+  "sanctions_block_threshold": 90,
+  "sanctions_warn_threshold": 80,
+  "review_risk_threshold": 30,
+  "stale_bank_letter_days": 90,
+  "fuzzy_duplicate_threshold": 86,
+  "enabled_rules": {
+    "R12": true,
+    "R13b": true,
+    "R17": true,
+    "R18": true
+  }
+}

@@ -1,0 +1,23 @@
+[
+ {
+  "id": "V-1001",
+  "legal_name": "Orion Supplies Private Limited",
+  "country": "IN",
+  "tax_id": "27AABCO1234F1ZV",
+  "account_number": "50100777123456"
+ },
+ {
+  "id": "V-1002",
+  "legal_name": "Northwind Logistics LLC",
+  "country": "US",
+  "tax_id": "12-3456789",
+  "account_number": "000123456789"
+ },
+ {
+  "id": "V-1003",
+  "legal_name": "Brightpath Consulting GmbH",
+  "country": "DE",
+  "tax_id": "DE136695976",
+  "account_number": "DE89370400440532013000"
+ }
+]
