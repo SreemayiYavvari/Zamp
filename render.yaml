@@ -1,29 +1,18 @@
-# Render Blueprint. New > Blueprint > pick this repo.
-# SQLite + uploaded PDFs need a persistent disk, which requires a paid instance (starter).
-# For a throwaway demo on the free plan, delete the `disk:` block and the three path env vars
-# (data then resets on every deploy/restart) and change `plan` to free.
+# Render Blueprint (FREE tier). New > Blueprint > pick this repo.
+# Free web services have no persistent disk, so the SQLite database, uploaded PDFs and
+# saved rule settings reset on every deploy, restart or idle spin-down. Fine for demos.
+# Free services also sleep after ~15 min idle; the first request then takes ~30-60 s.
 services:
   - type: web
     name: vendor-onboarding
     runtime: python
-    plan: starter
+    plan: free
     region: singapore
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
-    numInstances: 1          # SQLite on a disk: keep exactly one instance
     autoDeploy: true
-    disk:
-      name: vendor-data
-      mountPath: /var/data
-      sizeGB: 1
     envVars:
-      - key: DB_PATH
-        value: /var/data/vendor.db
-      - key: UPLOAD_DIR
-        value: /var/data/uploads
-      - key: RULE_CONFIG_FILE
-        value: /var/data/rule_config.json
       - key: DEMO_DELAY
         value: "0.7"
       - key: MOCK_LLM
@@ -31,4 +20,4 @@ services:
       - key: GEMINI_MODEL
         value: gemini-2.5-flash
       - key: GEMINI_API_KEY
-        sync: false          # you enter this in the Render dashboard; never in Git
+        sync: false          # enter in the Render dashboard; never commit it
